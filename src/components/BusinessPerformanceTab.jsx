@@ -94,6 +94,14 @@ export default function BusinessPerformanceTab({ businessUser }) {
 
     const items = Object.values(map).sort((a, b) => b.revenue - a.revenue);
 
+    if (items.length === 0) {
+      return {
+        products: [],
+        currentMonthSales: 0,
+        previousMonthSales: 0
+      };
+    }
+
     // Multipliers for different months to give realistic historical variations
     const monthMultipliers = {
       'January': 0.82, 'February': 0.88, 'March': 0.95,
@@ -109,20 +117,20 @@ export default function BusinessPerformanceTab({ businessUser }) {
       qty: Math.max(1, Math.round(it.qty * factor))
     }));
 
-    const totalRev = scaledItems.reduce((acc, curr) => acc + curr.revenue, 0) || (127300 * factor);
+    const totalRev = scaledItems.reduce((acc, curr) => acc + curr.revenue, 0);
 
     let displayProducts = [];
     if (scaledItems.length <= 4) {
       displayProducts = scaledItems.map((it, idx) => ({
         ...it,
         color: SLICE_COLORS[idx % SLICE_COLORS.length],
-        share: Math.round((it.revenue / totalRev) * 100)
+        share: totalRev > 0 ? Math.round((it.revenue / totalRev) * 100) : 0
       }));
     } else {
       const top4 = scaledItems.slice(0, 4).map((it, idx) => ({
         ...it,
         color: SLICE_COLORS[idx],
-        share: Math.round((it.revenue / totalRev) * 100)
+        share: totalRev > 0 ? Math.round((it.revenue / totalRev) * 100) : 0
       }));
       const othersRev = scaledItems.slice(4).reduce((acc, c) => acc + c.revenue, 0);
       const othersQty = scaledItems.slice(4).reduce((acc, c) => acc + c.qty, 0);
@@ -148,8 +156,11 @@ export default function BusinessPerformanceTab({ businessUser }) {
   }, [matchingBills, paidBills, selectedMonth, selectedYear, prevMonth]);
 
   const difference = currentMonthSales - previousMonthSales;
+  const isZeroSales = currentMonthSales === 0 && previousMonthSales === 0;
   const isPositiveGrowth = difference >= 0;
-  const percentageGrowth = Math.abs((difference / (previousMonthSales || 1)) * 100).toFixed(1);
+  const percentageGrowth = previousMonthSales > 0
+    ? Math.abs((difference / previousMonthSales) * 100).toFixed(1)
+    : (currentMonthSales > 0 ? '100.0' : '0.0');
 
   // SVG Donut Slices
   const pieSlices = useMemo(() => {
@@ -174,6 +185,22 @@ export default function BusinessPerformanceTab({ businessUser }) {
 
   // Seasonally & contextually dynamic strategic advice for the chosen Month & Year
   const seasonalAdvice = useMemo(() => {
+    if (products.length === 0) {
+      return {
+        theme: `Performance Overview for ${selectedMonth} ${selectedYear}`,
+        tips: [
+          {
+            title: 'Welcome to your Performance Dashboard',
+            desc: `No customer payments have been recorded for ${selectedMonth} ${selectedYear} yet. Once customer bills are paid, your sales figures and bestselling items will appear here.`
+          },
+          {
+            title: 'How to start recording sales',
+            desc: 'Go to the Sales tab to stock your inventory items, and use the Payments tab to create itemized bills and collect QR payments.'
+          }
+        ]
+      };
+    }
+
     const topItem = products[0]?.name || 'Your top product';
     const secondItem = products[1]?.name || 'Secondary item';
 
@@ -280,9 +307,11 @@ export default function BusinessPerformanceTab({ businessUser }) {
         <div className="flex items-center justify-between text-xs font-semibold text-slate-400 uppercase tracking-wider">
           <span>{selectedMonth} {selectedYear} Revenue</span>
           <span className={`inline-flex items-center gap-1 font-bold px-2.5 py-1 rounded-full text-xs ${
-            isPositiveGrowth ? 'text-emerald-700 bg-emerald-50' : 'text-slate-700 bg-slate-100'
+            isZeroSales ? 'text-slate-500 bg-slate-100' : isPositiveGrowth ? 'text-emerald-700 bg-emerald-50' : 'text-slate-700 bg-slate-100'
           }`}>
-            {isPositiveGrowth ? (
+            {isZeroSales ? (
+              <span>No sales yet</span>
+            ) : isPositiveGrowth ? (
               <>
                 <ArrowUpRight className="w-3.5 h-3.5" />
                 +{percentageGrowth}% vs {prevMonth}
@@ -330,55 +359,67 @@ export default function BusinessPerformanceTab({ businessUser }) {
         </div>
 
         {/* Donut Chart + Product List */}
-        <div className="flex flex-col sm:flex-row items-center justify-around gap-6 pt-2">
-          
-          {/* Simple Clean Donut Chart */}
-          <div className="relative w-44 h-44 flex items-center justify-center flex-shrink-0">
-            <svg viewBox="0 0 200 200" className="w-full h-full transform -rotate-90">
-              {pieSlices.map((slice) => (
-                <path
-                  key={slice.name}
-                  d={slice.path}
-                  fill={slice.color}
-                  className="transition-opacity hover:opacity-85"
-                />
-              ))}
-              <circle cx="100" cy="100" r="48" fill="#FFFFFF" />
-            </svg>
-            <div className="absolute inset-0 flex flex-col items-center justify-center text-center pointer-events-none">
-              <span className="text-[10px] uppercase font-bold text-slate-400">Products</span>
-              <span className="text-xs font-extrabold text-slate-800 font-sans">
-                {products.length} Items
-              </span>
-            </div>
-          </div>
-
-          {/* Clean Minimal Legend */}
-          <div className="w-full space-y-2.5">
-            {products.map((item) => (
-              <div key={item.name} className="flex items-center justify-between text-xs">
-                <div className="flex items-center gap-2 truncate pr-2">
-                  <span
-                    className="w-2.5 h-2.5 rounded-full flex-shrink-0"
-                    style={{ backgroundColor: item.color }}
+        {products.length > 0 ? (
+          <div className="flex flex-col sm:flex-row items-center justify-around gap-6 pt-2">
+            
+            {/* Simple Clean Donut Chart */}
+            <div className="relative w-44 h-44 flex items-center justify-center flex-shrink-0">
+              <svg viewBox="0 0 200 200" className="w-full h-full transform -rotate-90">
+                {pieSlices.map((slice) => (
+                  <path
+                    key={slice.name}
+                    d={slice.path}
+                    fill={slice.color}
+                    className="transition-opacity hover:opacity-85"
                   />
-                  <span className="font-medium text-slate-800 truncate">
-                    {item.name}
-                  </span>
-                </div>
-                <div className="text-right flex-shrink-0">
-                  <span className="font-bold text-slate-900 mr-2">
-                    {item.share}%
-                  </span>
-                  <span className="text-slate-400 text-[11px]">
-                    {formatNaira(item.revenue)}
-                  </span>
-                </div>
+                ))}
+                <circle cx="100" cy="100" r="48" fill="#FFFFFF" />
+              </svg>
+              <div className="absolute inset-0 flex flex-col items-center justify-center text-center pointer-events-none">
+                <span className="text-[10px] uppercase font-bold text-slate-400">Products</span>
+                <span className="text-xs font-extrabold text-slate-800 font-sans">
+                  {products.length} Items
+                </span>
               </div>
-            ))}
-          </div>
+            </div>
 
-        </div>
+            {/* Clean Minimal Legend */}
+            <div className="w-full space-y-2.5">
+              {products.map((item) => (
+                <div key={item.name} className="flex items-center justify-between text-xs">
+                  <div className="flex items-center gap-2 truncate pr-2">
+                    <span
+                      className="w-2.5 h-2.5 rounded-full flex-shrink-0"
+                      style={{ backgroundColor: item.color }}
+                    />
+                    <span className="font-medium text-slate-800 truncate">
+                      {item.name}
+                    </span>
+                  </div>
+                  <div className="text-right flex-shrink-0">
+                    <span className="font-bold text-slate-900 mr-2">
+                      {item.share}%
+                    </span>
+                    <span className="text-slate-400 text-[11px]">
+                      {formatNaira(item.revenue)}
+                    </span>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+          </div>
+        ) : (
+          <div className="py-10 text-center space-y-2">
+            <div className="w-12 h-12 rounded-2xl bg-indigo-50 text-indigo-600 flex items-center justify-center mx-auto mb-2">
+              <PieChartIcon className="w-6 h-6 stroke-[1.8]" />
+            </div>
+            <h4 className="text-sm font-bold text-slate-800">No Sales Recorded Yet</h4>
+            <p className="text-xs text-slate-400 max-w-sm mx-auto leading-relaxed">
+              When customers complete payments for items in {selectedMonth} {selectedYear}, your bestselling product breakdown and sales chart will appear here.
+            </p>
+          </div>
+        )}
       </div>
 
       {/* 4. Strategic Advice (Tailored to Selected Month & Year) */}

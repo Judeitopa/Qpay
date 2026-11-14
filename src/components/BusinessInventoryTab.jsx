@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Plus, Package, Trash2, Search, CheckCircle2, AlertCircle, TrendingUp, Layers, Tag, Lock, Unlock, KeyRound, ShieldCheck, X, Check, ArrowRight } from 'lucide-react';
 import confetti from 'canvas-confetti';
+import { persistActiveSession } from '../utils/accountStorage';
 
 const BUSINESS_CATEGORIES = [
   'Food',
@@ -17,7 +18,7 @@ const BUSINESS_CATEGORIES = [
 ];
 
 export default function BusinessInventoryTab({ businessUser }) {
-  // Saved inventory items stored in localStorage
+  // Saved inventory items stored in localStorage - starts empty for newly registered businesses
   const [inventory, setInventory] = useState(() => {
     const saved = localStorage.getItem('qpay_business_inventory');
     if (saved) {
@@ -27,14 +28,7 @@ export default function BusinessInventoryTab({ businessUser }) {
         return [];
       }
     }
-    // Default initial items with realistic categories
-    return [
-      { id: 'item_1', category: 'Food', name: 'Smoky Jollof Rice & Dodo', qty: 40, price: 3500 },
-      { id: 'item_2', category: 'Food', name: 'Catfish Pepper Soup Platter', qty: 25, price: 6000 },
-      { id: 'item_3', category: 'Drink', name: 'Chilled Chapman with Bitters', qty: 50, price: 1500 },
-      { id: 'item_4', category: 'Clothes', name: 'Vintage Ankara Unisex Shirt', qty: 15, price: 9500 },
-      { id: 'item_5', category: 'Shoe', name: 'Handcrafted Leather Loafers', qty: 10, price: 18500 }
-    ];
+    return [];
   });
 
   // 4-Digit Manager PIN (Default '1234')
@@ -77,6 +71,8 @@ export default function BusinessInventoryTab({ businessUser }) {
     const updated = [newItem, ...inventory];
     setInventory(updated);
     localStorage.setItem('qpay_business_inventory', JSON.stringify(updated));
+    persistActiveSession();
+    persistActiveSession();
 
     setNewItemName('');
     setNewItemQty('');
@@ -142,6 +138,7 @@ export default function BusinessInventoryTab({ businessUser }) {
 
     setInventory(updated);
     localStorage.setItem('qpay_business_inventory', JSON.stringify(updated));
+    persistActiveSession();
 
     setSuccessToast(`Stock for "${itemToEdit.name}" updated to ${updatedQty} units by Manager.`);
     setTimeout(() => setSuccessToast(''), 3500);

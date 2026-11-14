@@ -46,7 +46,7 @@ function getTimeOfDaySlot(dateStr) {
   return 'Evening Rush (5:00 PM – 9:00 PM)';
 }
 
-export default function CustomerLeaderboardTab({ businessName = 'Amara Ventures' }) {
+export default function CustomerLeaderboardTab({ businessName = 'Your Business' }) {
   const [bills, setBills] = useState(() => {
     try {
       const saved = localStorage.getItem('qpay_customer_payments');
@@ -421,7 +421,9 @@ export default function CustomerLeaderboardTab({ businessName = 'Amara Ventures'
 
           {filteredLeaderboard.length === 0 && (
             <div className="text-center py-10 text-xs text-slate-400">
-              No customer records found matching "{searchQuery}"
+              {customerLeaderboard.length === 0
+                ? 'No customer records found yet. Customer visit patterns and top purchases will appear here once customer payments are completed.'
+                : `No customer records found matching "${searchQuery}"`}
             </div>
           )}
         </div>

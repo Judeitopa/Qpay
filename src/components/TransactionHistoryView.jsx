@@ -43,88 +43,9 @@ export default function TransactionHistoryView({
         txList = JSON.parse(saved);
       }
 
-      // Seed initial realistic transactions if empty
-      if (!txList || txList.length === 0) {
-        if (isIndividual) {
-          txList = [
-            {
-              id: 'tx_seed_1',
-              title: 'Wallet Top-up via Card',
-              type: 'credit',
-              amount: 25000,
-              date: '07 Nov 2026, 14:30',
-              timeIso: new Date(Date.now() - 86400000).toISOString(),
-              ref: 'KP_QPAY_TOPUP_749102',
-              status: 'Successful',
-              rail: 'Card Payment •••• 4192',
-              channel: 'Access Bank Mastercard'
-            },
-            {
-              id: 'tx_seed_2',
-              title: 'Payment to Lekki Gourmet Bistro',
-              type: 'debit',
-              amount: 6500,
-              date: '07 Nov 2026, 15:15',
-              timeIso: new Date(Date.now() - 82000000).toISOString(),
-              ref: 'KP_QPAY_849201',
-              status: 'Successful',
-              rail: 'Kora QR Rail',
-              channel: 'Direct QR Checkout'
-            },
-            {
-              id: 'tx_seed_3',
-              title: 'Cashback Reward (Kora Promo)',
-              type: 'credit',
-              amount: 500,
-              date: '06 Nov 2026, 11:00',
-              timeIso: new Date(Date.now() - 172800000).toISOString(),
-              ref: 'KP_QPAY_CB_391024',
-              status: 'Successful',
-              rail: 'Promo Inflow',
-              channel: 'Kora Rewards'
-            }
-          ];
-        } else {
-          txList = [
-            {
-              id: 'tx_biz_1',
-              title: 'Customer Payment - Chinedu Okafor',
-              type: 'credit',
-              amount: 15000,
-              date: '08 Nov 2026, 10:15',
-              timeIso: new Date(Date.now() - 7200000).toISOString(),
-              ref: 'KP_QPAY_BILL_918201',
-              status: 'Successful',
-              rail: 'Customer Terminal QR',
-              channel: 'Qpay Virtual Account'
-            },
-            {
-              id: 'tx_biz_2',
-              title: 'Customer Payment - Bolanle Adeleke',
-              type: 'credit',
-              amount: 8500,
-              date: '07 Nov 2026, 16:20',
-              timeIso: new Date(Date.now() - 72000000).toISOString(),
-              ref: 'KP_QPAY_BILL_837192',
-              status: 'Successful',
-              rail: 'Customer Terminal QR',
-              channel: 'Qpay Virtual Account'
-            },
-            {
-              id: 'tx_biz_3',
-              title: 'Settlement Payout to Main Bank',
-              type: 'debit',
-              amount: 30000,
-              date: '06 Nov 2026, 09:30',
-              timeIso: new Date(Date.now() - 172800000).toISOString(),
-              ref: 'KP_QPAY_SETTLE_192837',
-              status: 'Successful',
-              rail: 'NIP Outward Rail',
-              channel: 'GTBank Settlement'
-            }
-          ];
-        }
-        localStorage.setItem('qpay_transactions', JSON.stringify(txList));
+      // Start empty if no transactions exist yet
+      if (!txList) {
+        txList = [];
       }
 
       // Merge business customer payments from qpay_customer_payments

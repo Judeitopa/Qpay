@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { User, Building2, ArrowRight, ShieldCheck, ArrowLeft, Mail, Phone, AtSign, CheckCircle2, Sparkles, Lock, AlertCircle, Eye, EyeOff, Check } from 'lucide-react';
 import { provisionKorapayVirtualAccount, generateUniqueQpayTag } from '../utils/korapayVault';
+import { findAccount, restoreAccountToActiveSession, saveAccount } from '../utils/accountStorage';
 
 /**
  * Validates Nigerian phone numbers
@@ -153,6 +154,21 @@ export default function RegisterView({ onRegisterComplete, onBackToLanding }) {
 
     setTimeout(() => {
       const userName = name.trim();
+      const userPhone = phone.trim();
+
+      // Check if an account already exists with this business name or phone
+      const existingAccount = findAccount(userName, selectedType) || findAccount(userPhone, selectedType);
+
+      if (existingAccount && existingAccount.user) {
+        // Restore previous account and its persistent data (bills, inventory, transactions, balance)
+        const restoredUser = restoreAccountToActiveSession(existingAccount);
+        setIsLoading(false);
+        setRegisteredUserData(restoredUser);
+        setIsEmailSent(true);
+        return;
+      }
+
+      // Brand new registration: start completely fresh
       const finalTag = generateUniqueQpayTag(userName, selectedType);
       const fullEmail = `${emailPrefix.trim().toLowerCase()}@qpay.africa.com`;
 
@@ -173,7 +189,7 @@ export default function RegisterView({ onRegisterComplete, onBackToLanding }) {
         vaultToken: vaultResult.vaultToken,
         internalVaultId: vaultResult.internalVaultId,
         email: fullEmail,
-        phone: phone.trim(),
+        phone: userPhone,
         balance: 0, // Starts at 0 Naira until funds are added
         tier: 1,
         bvnVerified: false,
@@ -184,9 +200,24 @@ export default function RegisterView({ onRegisterComplete, onBackToLanding }) {
           : 'https://images.unsplash.com/photo-1560179707-f14e90ef3623?w=120&auto=format&fit=crop&q=80'
       };
 
-      setIsLoading(false);
-      // Persist user immediately so refreshing the page never takes the user back to signup
+      // Set active session storage
       localStorage.setItem('qpay_registered_user', JSON.stringify(newUser));
+      if (selectedType === 'business') {
+        localStorage.setItem('qpay_customer_payments', JSON.stringify([]));
+        localStorage.setItem('qpay_business_inventory', JSON.stringify([]));
+      } else {
+        localStorage.setItem('qpay_transactions', JSON.stringify([]));
+      }
+
+      // Save into permanent accounts store
+      saveAccount(newUser, {
+        bills: [],
+        inventory: [],
+        transactions: [],
+        balance: 0
+      });
+
+      setIsLoading(false);
       setRegisteredUserData(newUser);
       setIsEmailSent(true); // Triggers the "We sent you an email" confirmation screen
     }, 450);

@@ -4,6 +4,7 @@ import { QRCodeSVG } from 'qrcode.react';
 import confetti from 'canvas-confetti';
 import { playRobloxClickSound } from '../utils/soundEffects';
 import VintagePaperTag from './VintagePaperTag';
+import { persistActiveSession } from '../utils/accountStorage';
 
 // Sample registered Qpay customers who transact on the network
 const REGISTERED_QPAY_CUSTOMERS = [
@@ -15,121 +16,20 @@ const REGISTERED_QPAY_CUSTOMERS = [
   { name: 'Amina Yusuf', tag: '@amina', phone: '+234 809 333 4455' }
 ];
 
-// Sample authentic Customer Orders & Payments (with returning customers seeded)
-const INITIAL_CUSTOMER_BILLS = [
-  {
-    id: 'BILL-89412',
-    customerName: 'Chinedu Okafor',
-    customerTag: '@chinedu',
-    phone: '+234 803 123 4567',
-    table: 'Table 04 (Dine-in)',
-    server: 'Joy A.',
-    date: '03 Nov 2026, 07:42 PM',
-    timeIso: '2026-11-03T19:42:00',
-    korapayRef: 'KP_QPAY_89412_NG',
-    status: 'SUCCESSFUL',
-    items: [
-      { name: 'Smoky Jollof Rice & Fried Dodo', qty: 2, unitPrice: 2500, total: 5000 },
-      { name: 'Grilled Catfish & Pepper Soup', qty: 1, unitPrice: 6000, total: 6000 },
-      { name: 'Asun Spicy Goat Meat Platter', qty: 1, unitPrice: 4500, total: 4500 },
-      { name: 'Chilled Chapman with Bitters', qty: 2, unitPrice: 1500, total: 3000 }
-    ],
-    subtotal: 18500,
-    vat: 0,
-    amountPaid: 18500
-  },
-  {
-    id: 'BILL-89411',
-    customerName: 'Bolanle Adeleke',
-    customerTag: '@bolanle',
-    phone: '+234 818 765 4321',
-    table: 'Table 09 (VIP Lounge)',
-    server: 'Emmanuel K.',
-    date: '03 Nov 2026, 06:15 PM',
-    timeIso: '2026-11-03T18:15:00',
-    korapayRef: 'KP_QPAY_89411_NG',
-    status: 'SUCCESSFUL',
-    items: [
-      { name: 'Pounded Yam & Seafood Okra Soup', qty: 2, unitPrice: 4500, total: 9000 },
-      { name: 'Peppered Turkey Wings (Jumbo)', qty: 2, unitPrice: 2400, total: 4800 },
-      { name: 'Chilled Maltina', qty: 2, unitPrice: 1200, total: 2400 }
-    ],
-    subtotal: 16200,
-    vat: 0,
-    amountPaid: 16200
-  },
-  {
-    id: 'BILL-89410',
-    customerName: 'Emeka Nwankwo',
-    customerTag: '@emeka',
-    phone: '+234 705 998 1122',
-    table: 'Takeaway / Counter',
-    server: 'Joy A.',
-    date: '03 Nov 2026, 04:50 PM',
-    timeIso: '2026-11-03T16:50:00',
-    korapayRef: 'KP_QPAY_89410_NG',
-    status: 'SUCCESSFUL',
-    items: [
-      { name: 'Special Fried Rice & Crispy Chicken', qty: 2, unitPrice: 3500, total: 7000 },
-      { name: 'Isi Ewu (Spicy Goat Head Platter)', qty: 1, unitPrice: 8500, total: 8500 },
-      { name: 'Fresh Palm Wine (Calabash)', qty: 2, unitPrice: 1800, total: 3600 }
-    ],
-    subtotal: 19100,
-    vat: 0,
-    amountPaid: 19100
-  },
-  {
-    id: 'BILL-89409',
-    customerName: 'Fatima Bello',
-    customerTag: '@fatima',
-    phone: '+234 802 443 9081',
-    table: 'Table 02 (Garden Area)',
-    server: 'Tunde O.',
-    date: '03 Nov 2026, 03:20 PM',
-    timeIso: '2026-11-03T15:20:00',
-    korapayRef: 'KP_QPAY_89409_NG',
-    status: 'SUCCESSFUL',
-    items: [
-      { name: 'Tuwo Shinkafa & Miyan Kuka with Beef', qty: 1, unitPrice: 4500, total: 4500 },
-      { name: 'Suya Skewers (Beef Tenderloin)', qty: 1, unitPrice: 2500, total: 2500 },
-      { name: 'Zobo Drink (Chilled Ginger Blend)', qty: 1, unitPrice: 1500, total: 1500 }
-    ],
-    subtotal: 8500,
-    vat: 0,
-    amountPaid: 8500
-  },
-  {
-    id: 'BILL-89408',
-    customerName: 'Chinedu Okafor', // Chinedu Okafor second visit -> x2 Returning Customer!
-    customerTag: '@chinedu',
-    phone: '+234 803 123 4567',
-    table: 'Bar Area',
-    server: 'Tunde O.',
-    date: '02 Nov 2026, 08:10 PM',
-    timeIso: '2026-11-02T20:10:00',
-    korapayRef: 'KP_QPAY_89408_NG',
-    status: 'SUCCESSFUL',
-    items: [
-      { name: 'Grilled Catfish & Pepper Soup', qty: 1, unitPrice: 6000, total: 6000 },
-      { name: 'Chilled Chapman with Bitters', qty: 1, unitPrice: 1500, total: 1500 }
-    ],
-    subtotal: 7500,
-    vat: 0,
-    amountPaid: 7500
-  }
-];
+// Customer Orders & Payments start clean for newly registered businesses
+const INITIAL_CUSTOMER_BILLS = [];
 
-export default function CustomerPaymentsTab({ businessName = 'Amara Ventures', onPaymentsUpdated }) {
+export default function CustomerPaymentsTab({ businessName = 'Your Business', onPaymentsUpdated }) {
   const [bills, setBills] = useState(() => {
     const saved = localStorage.getItem('qpay_customer_payments');
     if (saved) {
       try {
         return JSON.parse(saved);
       } catch (e) {
-        return INITIAL_CUSTOMER_BILLS;
+        return [];
       }
     }
-    return INITIAL_CUSTOMER_BILLS;
+    return [];
   });
 
   const [searchQuery, setSearchQuery] = useState('');
@@ -187,7 +87,11 @@ export default function CustomerPaymentsTab({ businessName = 'Amara Ventures', o
       } catch (e) {}
     };
 
-    // Lock background scroll when any modal is open
+    window.addEventListener('qpay_payments_updated', handlePaymentsSync);
+    return () => window.removeEventListener('qpay_payments_updated', handlePaymentsSync);
+  }, [activeGeneratedBill]);
+
+  // Lock background scroll when any modal is open
   useEffect(() => {
     if (selectedBill || showGenerateModal || activeGeneratedBill) {
       const originalOverflow = document.body.style.overflow;
@@ -197,10 +101,6 @@ export default function CustomerPaymentsTab({ businessName = 'Amara Ventures', o
       };
     }
   }, [selectedBill, showGenerateModal, activeGeneratedBill]);
-
-    window.addEventListener('qpay_payments_updated', handlePaymentsSync);
-    return () => window.removeEventListener('qpay_payments_updated', handlePaymentsSync);
-  }, [activeGeneratedBill]);
 
   // 10-Second Automatic Payment Success Simulation (tied to settleAt so leaving tab preserves progress)
   useEffect(() => {
@@ -233,6 +133,7 @@ export default function CustomerPaymentsTab({ businessName = 'Amara Ventures', o
                   found.customerTag = resolvedCustomer.tag;
                   found.phone = resolvedCustomer.phone;
                   localStorage.setItem('qpay_customer_payments', JSON.stringify(currentBills));
+                  persistActiveSession();
                   setBills(currentBills);
                   if (onPaymentsUpdated) {
                     const newTotal = currentBills
@@ -341,6 +242,7 @@ export default function CustomerPaymentsTab({ businessName = 'Amara Ventures', o
     const updatedBills = [newBill, ...bills];
     setBills(updatedBills);
     localStorage.setItem('qpay_customer_payments', JSON.stringify(updatedBills));
+    persistActiveSession();
 
     // Show live QR popup with 10s auto-settlement simulation
     setActiveGeneratedBill(newBill);

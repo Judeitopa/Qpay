@@ -23,6 +23,7 @@ import AiAssistantChat from './components/AiAssistantChat';
 import { checkKorapayInstallation } from './utils/deviceCheck';
 import { getStoredKorapayUser, setStoredKorapayUser } from './utils/korapayApi';
 import { playRobloxClickSound } from './utils/soundEffects';
+import { persistActiveSession, clearActiveSession } from './utils/accountStorage';
 
 export default function App() {
   // Registered user state: initially null to show "Register as a business" / "Register as an individual"
@@ -77,7 +78,7 @@ export default function App() {
           .filter(b => b.status === 'SUCCESSFUL' || b.status === 'PAID')
           .reduce((acc, curr) => acc + (curr.amountPaid || 0), 0);
       }
-      return 69800; // Initial customer payments total from INITIAL_CUSTOMER_BILLS
+      return 0; // Starts at 0 for new business
     } catch (e) {
       return 0;
     }
@@ -194,14 +195,17 @@ export default function App() {
     setRegisteredUser(user);
     setShowAuthScreen(false);
     localStorage.setItem('qpay_registered_user', JSON.stringify(user));
+    persistActiveSession();
+    updateCustomerPaymentsTotal();
   };
 
   // Confirmed log out handler
   const handleConfirmLogout = () => {
     setShowLogoutModal(false);
+    clearActiveSession();
     setRegisteredUser(null);
     setShowAuthScreen(false);
-    localStorage.removeItem('qpay_registered_user');
+    setCustomerPaymentsTotal(0);
     setCurrentView('home');
     setBusinessTab('terminal');
     window.scrollTo({ top: 0, behavior: 'auto' });
@@ -220,6 +224,7 @@ export default function App() {
         balance: (prev?.balance || 0) + amountAdded
       };
       localStorage.setItem('qpay_registered_user', JSON.stringify(updated));
+      persistActiveSession();
       return updated;
     });
   };
@@ -232,6 +237,7 @@ export default function App() {
         balance: Math.max(0, (prev?.balance || 0) - amountDeducted)
       };
       localStorage.setItem('qpay_registered_user', JSON.stringify(updated));
+      persistActiveSession();
       return updated;
     });
   };
@@ -240,6 +246,7 @@ export default function App() {
   const handleUserUpdated = (updatedUser) => {
     setRegisteredUser(updatedUser);
     localStorage.setItem('qpay_registered_user', JSON.stringify(updatedUser));
+    persistActiveSession();
   };
 
   /**
@@ -436,7 +443,14 @@ export default function App() {
                   <span className={`px-1.5 py-0.2 rounded-full text-[10px] font-bold ${
                     businessTab === 'customer_payments' ? 'bg-white/20 text-white' : 'bg-indigo-100 text-indigo-700'
                   }`}>
-                    {localStorage.getItem('qpay_customer_payments') ? JSON.parse(localStorage.getItem('qpay_customer_payments')).length : 5}
+                    {(() => {
+                      try {
+                        const raw = localStorage.getItem('qpay_customer_payments');
+                        return raw ? JSON.parse(raw).length : 0;
+                      } catch (e) {
+                        return 0;
+                      }
+                    })()}
                   </span>
                 </button>
 
