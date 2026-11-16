@@ -1,10 +1,16 @@
 import React, { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { FileText, QrCode, CheckCircle2, Search, ArrowRight, Printer, Share2, X, Clock, User, Users, ShieldCheck, Tag, Plus, Check, Loader2, Sparkles, Building2 } from 'lucide-react';
 import { QRCodeSVG } from 'qrcode.react';
 import confetti from 'canvas-confetti';
 import { playRobloxClickSound } from '../utils/soundEffects';
 import VintagePaperTag from './VintagePaperTag';
 import { persistActiveSession } from '../utils/accountStorage';
+
+function renderModalPortal(content) {
+  if (typeof document === 'undefined') return null;
+  return createPortal(content, document.body);
+}
 
 // Sample registered Qpay customers who transact on the network
 const REGISTERED_QPAY_CUSTOMERS = [
@@ -91,17 +97,6 @@ export default function CustomerPaymentsTab({ businessName = 'Your Business', on
     return () => window.removeEventListener('qpay_payments_updated', handlePaymentsSync);
   }, [activeGeneratedBill]);
 
-  // Lock background scroll when any modal is open
-  useEffect(() => {
-    if (selectedBill || showGenerateModal || activeGeneratedBill) {
-      const originalOverflow = document.body.style.overflow;
-      document.body.style.overflow = 'hidden';
-      return () => {
-        document.body.style.overflow = originalOverflow;
-      };
-    }
-  }, [selectedBill, showGenerateModal, activeGeneratedBill]);
-
   // 10-Second Automatic Payment Success Simulation (tied to settleAt so leaving tab preserves progress)
   useEffect(() => {
     let countInterval;
@@ -173,7 +168,8 @@ export default function CustomerPaymentsTab({ businessName = 'Your Business', on
       copy[index] = {
         name: inventoryItem.name,
         qty: copy[index]?.qty || 1,
-        unitPrice: inventoryItem.price
+        unitPrice: inventoryItem.price,
+        inventoryId: inventoryItem.id
       };
       return copy;
     });
@@ -214,13 +210,47 @@ export default function CustomerPaymentsTab({ businessName = 'Your Business', on
           name: item.name.trim(),
           qty,
           unitPrice: price,
-          total: qty * price
+          total: qty * price,
+          inventoryId: item.inventoryId
         };
       });
 
     if (formattedItems.length === 0) return;
 
-    // Bill starts with PENDING status and automatically resolves the registered Qpay user's name
+    // 1. Automatically deduct purchased quantities from business inventory/catalog
+    try {
+      const savedInv = localStorage.getItem('qpay_business_inventory');
+      if (savedInv) {
+        const inventoryList = JSON.parse(savedInv);
+        let inventoryChanged = false;
+
+        formattedItems.forEach((purchasedItem) => {
+          const pName = purchasedItem.name.trim().toLowerCase();
+          const pQty = parseInt(purchasedItem.qty) || 1;
+
+          // Match by inventoryId first, or by exact item name
+          const target = inventoryList.find((inv) =>
+            (purchasedItem.inventoryId && inv.id === purchasedItem.inventoryId) ||
+            ((inv.name || '').trim().toLowerCase() === pName)
+          );
+
+          if (target) {
+            target.qty = Math.max(0, (parseInt(target.qty) || 0) - pQty);
+            inventoryChanged = true;
+          }
+        });
+
+        if (inventoryChanged) {
+          localStorage.setItem('qpay_business_inventory', JSON.stringify(inventoryList));
+          setAvailableInventory(inventoryList);
+          window.dispatchEvent(new CustomEvent('qpay_inventory_updated', { detail: { inventory: inventoryList } }));
+        }
+      }
+    } catch (err) {
+      console.error('Failed to deduct from business inventory:', err);
+    }
+
+    // 2. Bill starts with PENDING status and automatically resolves the registered Qpay user's name
     const newBill = {
       id: 'BILL-' + Math.floor(10000 + Math.random() * 90000),
       customerName: 'Awaiting Qpay Customer...',
@@ -448,9 +478,14 @@ export default function CustomerPaymentsTab({ businessName = 'Your Business', on
       {/* MODAL 1: GENERATE PAYMENT QR WITH ITEMS AND QTY */}
       {/* (Customer Name is NOT asked, auto-resolved from registered Qpay user) */}
       {/* ======================================================== */}
-      {showGenerateModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs animate-fadeIn select-none">
-          <div className="relative w-full max-w-md max-h-[90vh] overflow-y-auto bg-white rounded-3xl shadow-2xl p-6 space-y-4 animate-scaleUp">
+      {showGenerateModal && renderModalPortal(
+        <div 
+          onClick={(e) => {
+            if (e.target === e.currentTarget) setShowGenerateModal(false);
+          }}
+          className="fixed inset-0 z-50 overflow-y-auto bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 select-none"
+        >
+          <div className="relative w-full max-w-md max-h-[90vh] overflow-y-auto bg-white rounded-3xl shadow-2xl p-6 space-y-4 animate-scaleUp my-auto">
             
             <button
               onClick={() => setShowGenerateModal(false)}
@@ -592,9 +627,14 @@ export default function CustomerPaymentsTab({ businessName = 'Your Business', on
       {/* ======================================================== */}
       {/* MODAL 2: LIVE GENERATED PAYMENT QR WITH 10-SECOND AUTOMATIC SUCCESS SIMULATION */}
       {/* ======================================================== */}
-      {activeGeneratedBill && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs animate-fadeIn select-none">
-          <div className="relative w-full max-w-sm bg-white rounded-3xl shadow-2xl p-6 text-center space-y-4 animate-scaleUp">
+      {activeGeneratedBill && renderModalPortal(
+        <div 
+          onClick={(e) => {
+            if (e.target === e.currentTarget) setActiveGeneratedBill(null);
+          }}
+          className="fixed inset-0 z-50 overflow-y-auto bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 select-none"
+        >
+          <div className="relative w-full max-w-sm max-h-[90vh] overflow-y-auto bg-white rounded-3xl shadow-2xl p-6 text-center space-y-4 animate-scaleUp my-auto">
             
             <button
               onClick={() => setActiveGeneratedBill(null)}
@@ -694,7 +734,7 @@ export default function CustomerPaymentsTab({ businessName = 'Your Business', on
       {/* ======================================================== */}
       {/* MODAL 3: TYPICAL NIGERIAN BUSINESS BILL / TAX INVOICE MODAL */}
       {/* ======================================================== */}
-      {selectedBill && (
+      {selectedBill && renderModalPortal(
         <div 
           onClick={(e) => {
             if (e.target === e.currentTarget) setSelectedBill(null);

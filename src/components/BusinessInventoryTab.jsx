@@ -1,7 +1,13 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { Plus, Package, Trash2, Search, CheckCircle2, AlertCircle, TrendingUp, Layers, Tag, Lock, Unlock, KeyRound, ShieldCheck, X, Check, ArrowRight } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import { persistActiveSession } from '../utils/accountStorage';
+
+function renderModalPortal(content) {
+  if (typeof document === 'undefined') return null;
+  return createPortal(content, document.body);
+}
 
 const BUSINESS_CATEGORIES = [
   'Food',
@@ -54,6 +60,25 @@ export default function BusinessInventoryTab({ businessUser }) {
   const [isPinUnlocked, setIsPinUnlocked] = useState(false);
   const [editQtyValue, setEditQtyValue] = useState(0);
   const [successToast, setSuccessToast] = useState('');
+
+  // Sync inventory with live storage updates (e.g. deductions when customer payment QR is generated)
+  useEffect(() => {
+    const handleSync = () => {
+      try {
+        const saved = localStorage.getItem('qpay_business_inventory');
+        if (saved) {
+          setInventory(JSON.parse(saved));
+        }
+      } catch (e) {}
+    };
+
+    window.addEventListener('qpay_inventory_updated', handleSync);
+    window.addEventListener('storage', handleSync);
+    return () => {
+      window.removeEventListener('qpay_inventory_updated', handleSync);
+      window.removeEventListener('storage', handleSync);
+    };
+  }, []);
 
   // Save new item to inventory
   const handleSaveItem = (e) => {
@@ -477,9 +502,18 @@ export default function BusinessInventoryTab({ businessUser }) {
       {/* ======================================================== */}
       {/* 4-DIGIT PIN SECURITY MODAL TO UNLOCK & EDIT QUANTITY */}
       {/* ======================================================== */}
-      {itemToEdit && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs animate-fadeIn select-none">
-          <div className="relative w-full max-w-sm bg-white rounded-3xl shadow-2xl p-6 text-center space-y-4 animate-scaleUp">
+      {itemToEdit && renderModalPortal(
+        <div 
+          onClick={(e) => {
+            if (e.target === e.currentTarget) {
+              setItemToEdit(null);
+              setIsPinUnlocked(false);
+              setPinInput('');
+            }
+          }}
+          className="fixed inset-0 z-50 overflow-y-auto bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 select-none"
+        >
+          <div className="relative w-full max-w-sm max-h-[90vh] overflow-y-auto bg-white rounded-3xl shadow-2xl p-6 text-center space-y-4 animate-scaleUp my-auto">
             
             <button
               onClick={() => {

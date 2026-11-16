@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
-import { X, ShieldCheck, User, Mail, Phone, AtSign, CheckCircle2, Lock, ArrowUpRight, AlertCircle, FileCheck, Landmark, Upload, FileText, Building2, Check, FileCode, Sparkles } from 'lucide-react';
+import { X, ShieldCheck, User, Mail, Phone, AtSign, CheckCircle2, Lock, ArrowUpRight, AlertCircle, FileCheck, Landmark, Upload, FileText, Building2, Check, FileCode, Sparkles, LogOut } from 'lucide-react';
 import confetti from 'canvas-confetti';
+import { resolveUserAvatar } from '../utils/avatar';
 
-export default function ProfileKycModal({ isOpen, onClose, registeredUser, onUserUpdated }) {
+export default function ProfileKycModal({ isOpen, onClose, registeredUser, onUserUpdated, onLogout }) {
   const isBusiness = registeredUser?.type === 'business';
   const currentTier = registeredUser?.tier || 1;
 
@@ -158,20 +159,37 @@ export default function ProfileKycModal({ isOpen, onClose, registeredUser, onUse
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm animate-fadeIn">
       <div className="relative w-full max-w-lg max-h-[92vh] overflow-y-auto bg-white rounded-3xl shadow-2xl p-6 sm:p-7 space-y-6 animate-scaleUp">
         
-        {/* Close Button */}
-        <button
-          onClick={onClose}
-          type="button"
-          className="absolute top-4 right-4 p-1.5 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition"
-        >
-          <X className="w-5 h-5" />
-        </button>
+        {/* Actions: Log Out Button + Close Button */}
+        <div className="absolute top-4 right-4 flex items-center gap-2">
+          {onLogout && (
+            <button
+              onClick={() => {
+                onClose();
+                onLogout();
+              }}
+              type="button"
+              className="flex items-center gap-1.5 px-3 py-1.5 bg-rose-50 hover:bg-rose-100 text-rose-600 border border-rose-200/80 rounded-xl text-xs font-semibold transition cursor-pointer shadow-sm hover:shadow"
+              title="Log out of Qpay"
+            >
+              <LogOut className="w-3.5 h-3.5" />
+              <span>Log Out</span>
+            </button>
+          )}
+          <button
+            onClick={onClose}
+            type="button"
+            className="p-1.5 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition cursor-pointer"
+            title="Close"
+          >
+            <X className="w-5 h-5" />
+          </button>
+        </div>
 
         {/* Profile Card Header */}
         <div className="flex items-center gap-4 pb-4 border-b border-slate-100">
           <div className="relative">
             <img
-              src={registeredUser.avatar}
+              src={resolveUserAvatar(registeredUser)}
               alt={registeredUser.name}
               className="w-16 h-16 rounded-full object-cover border-2 border-indigo-100 shadow-sm"
             />
@@ -514,6 +532,23 @@ export default function ProfileKycModal({ isOpen, onClose, registeredUser, onUse
           <ShieldCheck className="w-4 h-4 text-emerald-500 flex-shrink-0" />
           <span>Data verified through Kora licensed identity & CAC verification infrastructure.</span>
         </div>
+
+        {/* Account Logout Action */}
+        {onLogout && (
+          <div className="pt-2 border-t border-slate-100">
+            <button
+              type="button"
+              onClick={() => {
+                onClose();
+                onLogout();
+              }}
+              className="w-full py-2.5 px-4 bg-rose-50 hover:bg-rose-100 border border-rose-200 text-rose-700 hover:text-rose-800 rounded-2xl text-xs font-semibold transition flex items-center justify-center gap-2 cursor-pointer shadow-sm hover:shadow"
+            >
+              <LogOut className="w-4 h-4 text-rose-600" />
+              <span>Log Out of Qpay Account</span>
+            </button>
+          </div>
+        )}
 
       </div>
     </div>

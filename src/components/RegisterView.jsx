@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { User, Building2, ArrowRight, ShieldCheck, ArrowLeft, Mail, Phone, AtSign, CheckCircle2, Sparkles, Lock, AlertCircle, Eye, EyeOff, Check } from 'lucide-react';
 import { provisionKorapayVirtualAccount, generateUniqueQpayTag } from '../utils/korapayVault';
-import { findAccount, restoreAccountToActiveSession, saveAccount } from '../utils/accountStorage';
+import { findAccount, restoreAccountToActiveSession, saveAccount, hasRegisteredAccountType, getRecognizedAccountByType } from '../utils/accountStorage';
+import { DEFAULT_UNISEX_AVATAR } from '../utils/avatar';
 
 /**
  * Validates Nigerian phone numbers
@@ -19,8 +20,20 @@ function isValidNigerianPhone(phone) {
   return localRegex.test(cleaned) || intlRegex.test(cleaned) || rawIntlRegex.test(cleaned);
 }
 
-export default function RegisterView({ onRegisterComplete, onBackToLanding }) {
-  const [selectedType, setSelectedType] = useState(null);
+export default function RegisterView({ 
+  initialSelectedType = null, 
+  onRegisterComplete, 
+  onBackToLanding, 
+  onSwitchToLogin,
+  onChangeAccountType
+}) {
+  const [selectedType, setSelectedType] = useState(initialSelectedType);
+
+  useEffect(() => {
+    if (initialSelectedType !== undefined) {
+      setSelectedType(initialSelectedType);
+    }
+  }, [initialSelectedType]);
   
   // Fields start completely EMPTY as requested
   const [name, setName] = useState('');
@@ -88,6 +101,15 @@ export default function RegisterView({ onRegisterComplete, onBackToLanding }) {
   }, [name, selectedType]);
 
   const handleSelectType = (type) => {
+    // If an account of this type was already registered on this device, switch directly to Log In!
+    if (hasRegisteredAccountType(type)) {
+      if (onSwitchToLogin) {
+        onSwitchToLogin(type);
+        return;
+      }
+    }
+
+    // Otherwise, collect information to register
     setSelectedType(type);
     setName('');
     setPhone('');
@@ -190,18 +212,22 @@ export default function RegisterView({ onRegisterComplete, onBackToLanding }) {
         internalVaultId: vaultResult.internalVaultId,
         email: fullEmail,
         phone: userPhone,
+        password: password, // Store password so user can log in with phone and password
         balance: 0, // Starts at 0 Naira until funds are added
         tier: 1,
         bvnVerified: false,
         ninVerified: false,
         registeredAt: new Date().toISOString(),
         avatar: selectedType === 'individual' 
-          ? 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=120&auto=format&fit=crop&q=80'
+          ? DEFAULT_UNISEX_AVATAR
           : 'https://images.unsplash.com/photo-1560179707-f14e90ef3623?w=120&auto=format&fit=crop&q=80'
       };
 
       // Set active session storage
       localStorage.setItem('qpay_registered_user', JSON.stringify(newUser));
+      localStorage.setItem('qpay_has_account', 'true');
+      localStorage.setItem('qpay_last_phone', userPhone);
+
       if (selectedType === 'business') {
         localStorage.setItem('qpay_customer_payments', JSON.stringify([]));
         localStorage.setItem('qpay_business_inventory', JSON.stringify([]));
@@ -211,6 +237,7 @@ export default function RegisterView({ onRegisterComplete, onBackToLanding }) {
 
       // Save into permanent accounts store
       saveAccount(newUser, {
+        password: password,
         bills: [],
         inventory: [],
         transactions: [],
@@ -436,6 +463,22 @@ export default function RegisterView({ onRegisterComplete, onBackToLanding }) {
                 </span>
               </div>
 
+              {/* Returning User Log In Switch */}
+              {onSwitchToLogin && (
+                <div className="pt-3">
+                  <p className="text-xs text-slate-500">
+                    Already registered on Qpay?{' '}
+                    <button
+                      type="button"
+                      onClick={() => onSwitchToLogin('individual')}
+                      className="font-semibold text-indigo-600 hover:text-indigo-800 underline underline-offset-2 transition cursor-pointer"
+                    >
+                      Log in with Phone & Password
+                    </button>
+                  </p>
+                </div>
+              )}
+
             </div>
           ) : (
             /* STEP 2: Registration Details Form with Email Prefix (@qpay.africa.com) and Password Confirmation */
@@ -444,17 +487,43 @@ export default function RegisterView({ onRegisterComplete, onBackToLanding }) {
               <div className="flex items-center justify-between pb-3 border-b border-slate-100">
                 <button
                   type="button"
-                  onClick={() => setSelectedType(null)}
-                  className="flex items-center gap-1.5 text-xs font-medium text-slate-500 hover:text-slate-800 transition"
+                  onClick={() => {
+                    setSelectedType(null);
+                    setName('');
+                    setPhone('');
+                    setEmailPrefix('');
+                    setPassword('');
+                    setConfirmPassword('');
+                    setPhoneError('');
+                    setNameError('');
+                    setEmailError('');
+                    setPasswordError('');
+                    if (onChangeAccountType) {
+                      onChangeAccountType();
+                    }
+                  }}
+                  className="flex items-center gap-1.5 text-xs font-medium text-slate-500 hover:text-slate-800 transition cursor-pointer"
                 >
                   <ArrowLeft className="w-4 h-4" />
                   <span>Change Account Type</span>
                 </button>
 
                 <span className="px-2.5 py-1 bg-indigo-50 text-indigo-700 text-xs font-semibold rounded-full capitalize">
-                  {selectedType}
+                  {typeof selectedType === 'string' ? selectedType : 'individual'}
                 </span>
               </div>
+
+              {/* Informative notice explaining registration is needed if not previously registered */}
+              {!hasRegisteredAccountType(selectedType) && (
+                <div className="p-3 bg-amber-50 border border-amber-200 rounded-2xl flex items-start gap-2.5 text-xs text-amber-800 animate-fadeIn">
+                  <AlertCircle className="w-4 h-4 text-amber-600 flex-shrink-0 mt-0.5" />
+                  <span>
+                    {selectedType === 'business'
+                      ? 'No business account found on this device. Please register your business below to begin accepting payments.'
+                      : 'No individual account found on this device. Please register your details below to get started.'}
+                  </span>
+                </div>
+              )}
 
               <div>
                 <h2 className="text-xl font-bold text-slate-900">
@@ -683,6 +752,22 @@ export default function RegisterView({ onRegisterComplete, onBackToLanding }) {
                     )}
                   </button>
                 </div>
+
+                {/* Switch to Log In if returning user */}
+                {onSwitchToLogin && (
+                  <div className="pt-1 text-center">
+                    <p className="text-xs text-slate-500">
+                      Already have an account?{' '}
+                      <button
+                        type="button"
+                        onClick={() => onSwitchToLogin && onSwitchToLogin(typeof selectedType === 'string' ? selectedType : 'individual')}
+                        className="font-semibold text-indigo-600 hover:text-indigo-800 underline underline-offset-2 transition cursor-pointer"
+                      >
+                        Log in
+                      </button>
+                    </p>
+                  </div>
+                )}
 
                 {/* Privacy footnote */}
                 <p className="text-[11px] text-slate-400 text-center flex items-center justify-center gap-1.5 pt-1">

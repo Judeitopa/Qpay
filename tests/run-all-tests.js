@@ -12,7 +12,8 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 const testFiles = [
   'tests/crossDevicePayment.test.js',
   'tests/korapayVault.test.js',
-  'tests/securityAndLimits.test.js'
+  'tests/securityAndLimits.test.js',
+  'tests/loginAuthentication.test.js'
 ];
 
 console.log('='.repeat(65));

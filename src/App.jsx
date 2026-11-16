@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { ArrowDownToLine, QrCode, ShieldCheck, RefreshCw, Receipt, WalletCards, Package, Trophy, User, LogOut, TrendingUp } from 'lucide-react';
 import RegisterView from './components/RegisterView';
+import LoginView from './components/LoginView';
 import LandingPage from './components/LandingPage';
 import BalanceDashboard from './components/BalanceDashboard';
 import CustomerPaymentsTab from './components/CustomerPaymentsTab';
@@ -23,7 +24,8 @@ import AiAssistantChat from './components/AiAssistantChat';
 import { checkKorapayInstallation } from './utils/deviceCheck';
 import { getStoredKorapayUser, setStoredKorapayUser } from './utils/korapayApi';
 import { playRobloxClickSound } from './utils/soundEffects';
-import { persistActiveSession, clearActiveSession } from './utils/accountStorage';
+import { persistActiveSession, clearActiveSession, hasRegisteredAccount } from './utils/accountStorage';
+import { resolveUserAvatar, DEFAULT_UNISEX_AVATAR } from './utils/avatar';
 
 export default function App() {
   // Registered user state: initially null to show "Register as a business" / "Register as an individual"
@@ -31,7 +33,11 @@ export default function App() {
     const saved = localStorage.getItem('qpay_registered_user');
     if (saved) {
       try {
-        return JSON.parse(saved);
+        const parsed = JSON.parse(saved);
+        if (parsed && parsed.type === 'individual' && (!parsed.avatar || parsed.avatar.includes('photo-1573496359142-b8d87734a5a2'))) {
+          parsed.avatar = DEFAULT_UNISEX_AVATAR;
+        }
+        return parsed;
       } catch (e) {
         return null;
       }
@@ -42,8 +48,10 @@ export default function App() {
   // Screen views: 'home' | 'scanner' | 'receive'
   const [currentView, setCurrentView] = useState('home');
 
-  // Unauthenticated sub-screen toggle: false -> LandingPage, true -> RegisterView ("Continue as Individual / Business")
+  // Unauthenticated sub-screen toggle: false -> LandingPage, true -> Auth View
   const [showAuthScreen, setShowAuthScreen] = useState(false);
+  const [authView, setAuthView] = useState('selection'); // 'selection' | 'login' | 'register'
+  const [authType, setAuthType] = useState('individual'); // 'individual' | 'business'
   
   // Business tabs: 'terminal' | 'inventory' | 'customer_payments'
   const [businessTab, setBusinessTab] = useState('terminal');
@@ -205,6 +213,7 @@ export default function App() {
     clearActiveSession();
     setRegisteredUser(null);
     setShowAuthScreen(false);
+    setAuthView('selection');
     setCustomerPaymentsTotal(0);
     setCurrentView('home');
     setBusinessTab('terminal');
@@ -295,13 +304,38 @@ export default function App() {
     setStoredKorapayUser(user);
   };
 
-  // If user has not yet registered/logged in, show LandingPage first, then RegisterView when clicking "Log In"
+  const sanitizeAuthType = (t) => {
+    return (typeof t === 'string' && t.toLowerCase() === 'business') ? 'business' : 'individual';
+  };
+
+  // If user has not yet registered/logged in, show LandingPage first, then selection, login, or register
   if (!registeredUser) {
     if (!showAuthScreen) {
       return (
         <LandingPage
           onLoginClick={() => {
+            setAuthView('selection');
             setShowAuthScreen(true);
+            window.scrollTo({ top: 0, behavior: 'auto' });
+          }}
+        />
+      );
+    }
+
+    if (authView === 'login') {
+      return (
+        <LoginView
+          accountType={sanitizeAuthType(authType)}
+          onLoginSuccess={handleRegisterComplete}
+          onSwitchToRegister={(type) => {
+            setAuthType(sanitizeAuthType(type));
+            setAuthView('register');
+          }}
+          onChangeAccountType={() => {
+            setAuthView('selection');
+          }}
+          onBackToLanding={() => {
+            setShowAuthScreen(false);
             window.scrollTo({ top: 0, behavior: 'auto' });
           }}
         />
@@ -310,7 +344,16 @@ export default function App() {
 
     return (
       <RegisterView
+        key={authView === 'selection' ? 'selection' : `reg_${sanitizeAuthType(authType)}`}
+        initialSelectedType={authView === 'register' ? sanitizeAuthType(authType) : null}
         onRegisterComplete={handleRegisterComplete}
+        onSwitchToLogin={(type) => {
+          setAuthType(sanitizeAuthType(type));
+          setAuthView('login');
+        }}
+        onChangeAccountType={() => {
+          setAuthView('selection');
+        }}
         onBackToLanding={() => {
           setShowAuthScreen(false);
           window.scrollTo({ top: 0, behavior: 'auto' });
@@ -368,7 +411,7 @@ export default function App() {
             className="relative w-9 h-9 rounded-full overflow-hidden border-2 border-indigo-200 hover:border-indigo-500 hover:scale-105 shadow-sm flex-shrink-0 cursor-pointer transition"
           >
             <img
-              src={registeredUser.avatar}
+              src={resolveUserAvatar(registeredUser)}
               alt={registeredUser.name}
               className="w-full h-full object-cover"
             />
@@ -786,6 +829,7 @@ export default function App() {
         onClose={() => setShowProfileModal(false)}
         registeredUser={registeredUser}
         onUserUpdated={handleUserUpdated}
+        onLogout={() => setShowLogoutModal(true)}
       />
 
       {/* Add Money Modal (Permanent Card top-up) */}

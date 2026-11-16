@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import {
   Trophy,
   Crown,
@@ -44,6 +45,11 @@ function getTimeOfDaySlot(dateStr) {
     }
   } catch (e) {}
   return 'Evening Rush (5:00 PM – 9:00 PM)';
+}
+
+function renderModalPortal(content) {
+  if (typeof document === 'undefined') return null;
+  return createPortal(content, document.body);
 }
 
 export default function CustomerLeaderboardTab({ businessName = 'Your Business' }) {
@@ -430,9 +436,14 @@ export default function CustomerLeaderboardTab({ businessName = 'Your Business' 
       </div>
 
       {/* CRM Details Modal */}
-      {selectedCustomer && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-xs animate-fadeIn select-none">
-          <div className="relative w-full max-w-md max-h-[90vh] overflow-y-auto bg-white rounded-3xl shadow-2xl p-6 space-y-4 animate-scaleUp">
+      {selectedCustomer && renderModalPortal(
+        <div 
+          onClick={(e) => {
+            if (e.target === e.currentTarget) setSelectedCustomer(null);
+          }}
+          className="fixed inset-0 z-50 overflow-y-auto bg-slate-900/50 backdrop-blur-xs flex items-center justify-center p-4 select-none"
+        >
+          <div className="relative w-full max-w-md max-h-[90vh] overflow-y-auto bg-white rounded-3xl shadow-2xl p-6 space-y-4 animate-scaleUp my-auto">
             {/* Close Button */}
             <button
               onClick={() => setSelectedCustomer(null)}
