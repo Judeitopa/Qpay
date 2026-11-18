@@ -28,8 +28,8 @@ A peer-to-peer (P2P) and merchant QR payment web application built with React, V
 
 ## Overview
 
-Qpay is designed to streamline cash-less payments in retail, dining, and daily peer-to-peer scenarios. Users can create either an **Individual** or **Business** profile:
-- **Individuals** can top up their wallet, send money via phone number or tag, and scan QR codes at checkout counters to pay within seconds.
+Qpay is designed to streamline payments in retail or businesses by avoiding wrong transfers caused by the use of account numbers in daily peer-to-peer scenarios. Users can create either an **Individual** or **Business** profile:
+- **Individuals** can top up their wallet, send money by scanning QR codes at checkout counters to pay within seconds, and can also remove funds from Qpay through a permanently saved account number.
 - **Businesses** can issue itemized point-of-sale bills, collect customer payments via static or dynamic QR codes, track top returning customers on an automated Leaderboard, download customer dossiers as PDFs, and review monthly sales performance.
 
 ---
@@ -38,7 +38,7 @@ Qpay is designed to streamline cash-less payments in retail, dining, and daily p
 
 ### Individual Accounts
 - **Digital Wallet:** Real-time Naira balance tracking with quick top-up simulated via Kora checkout (Card, Bank Transfer, USSD).
-- **Send Money:** Transfer to registered users via phone number, Qpay tag, or direct account search.
+- **Send Money:** Transfer to registered users by scanning a generated "recieve" QR code from another user or uploading an image of a generated "recieve" QR code if the receiver is at a farther distance from you.
 - **Receive via QR:** Generate static or custom-amount QR codes for contactless incoming payments.
 - **Transaction History:** Filterable ledger of credits and debits with detailed receipts and reference numbers.
 - **Security PIN:** 4-digit PIN verification before executing any debit or wallet transfer.
@@ -51,7 +51,7 @@ Qpay is designed to streamline cash-less payments in retail, dining, and daily p
   - Generates downloadable individual customer profile summaries and full leaderboard reports in printable A4 PDF format.
 - **Performance Analytics:** 
   - Month-over-month revenue and order volume comparisons.
-  - Donut chart displaying bestselling products by revenue and sales volume.
+  - Pie chart displaying bestselling products by revenue and sales volume.
   - Practical strategic advice tailored to current sales velocity and customer trends.
 
 ### QR Code Engine
